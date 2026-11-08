@@ -1,0 +1,18 @@
+{
+  "$schema": "https://aspaceos.tech/schemas/cordis-fiber-v5.json",
+  "name": "@aspace-v5/riginfinity",
+  "submodule_path": "01_Forkable/FKB00_Runtime/01_Holo_TriptyqueCore/RigInfinity",
+  "sovereign_fork_url": "https://github.com/Amdkn/RigInfinity.git",
+  "branch": "aspace-v5-native",
+  "family": "METABOLIC_LINEAGE_POPULATION_RUST_FUSION",
+  "fractal_layer": "4L",
+  "holon_owner": "S1-RICK / A1-BETH / A1-MORTY",
+  "capabilities": [
+    "rust_deterministic_ownership",
+    "openrig_demo_qc_578_holons",
+    "infinity_daemon_rap_protocol",
+    "reviewer_security_owasp_top10"
+  ],
+  "a0_integration_target": "02_Factory/01_Kernel_Gates/daemon_supervisor_cordis.py",
+  "egm_gateway_endpoint": "http://127.0.0.1:31415/v1/chat/completions"
+}
