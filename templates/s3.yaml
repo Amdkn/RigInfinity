@@ -1,0 +1,40 @@
+# Rig S3 — Keep Aspace Loop Alive (les exécutants)
+# Source canonique : V5 AGENTS.md §8 (Architecture Holonique 3 OS).
+# Créé au pas 1 de D-N051 (automaton) — §D11 du design.
+# Le graphe (memory.jsonl) est le miroir : un seul sens template → graphe.
+name: s3
+title: "S3 — Keep Aspace Loop Alive"
+source: "V5 AGENTS.md §8"
+role: "Exécutants autonomes qui maintiennent la boucle vivante 24/7 sans micro-management. Un Compagnon = un canal, une responsabilité pleine."
+seats:
+  lead:
+    holon: S3-RYAN
+    role: "Factory. Transforme les plans de Clara/Doctors en systèmes qui tournent. Exécute, intègre, merge, consigne."
+  worker:
+    - holon: S3-YAZ
+      role: "Observatoire. Observe, mesure, alerte (LiDAR, télémétrie, canary)."
+    - holon: S3-GRAHAM
+      role: "Preuves. État, ledger, reçus R10, provenance temporelle."
+    - holon: S3-AMY
+      role: "Interface. 2D/3D, Cube Farm, Agent-Office, Herdr."
+    - holon: S3-RORY
+      role: "Preuves & 4P. Persistance, prévision, préparation, postérité (Wargames MiroFish)."
+    - holon: S3-RIVER
+      role: "Flows. GWS, Make, OpenBot, Linear."
+    - holon: S3-BILL
+      role: "Frameworks. Recherche, post-REA, distillation (Discover)."
+    - holon: S3-CLARA
+      role: "Décisions. Design, clean-room specs, contrats, forge."
+    - holon: S3-NARDOLE
+      role: "Agora. Dispatch, topologie, Jules, return_to."
+  reviewer:
+    holon: S3-CLARA
+    role: "Aucune exécution sans design signé de Clara. La signature déclenche le typage, le typage déclenche l'exécution."
+  kernel_operator:
+    holon: S3-NARDOLE
+    role: "Tient le registre de dispatch. Coordonne les cores. Pulse à chaque étape."
+rules:
+  - "Un Compagnon n'exécute que sur design signé. Jamais de swarm sans Clara."
+  - "La pulsation est à chaque étape ; le battement à vide est de 30 min. Les deux sont exigés."
+  - "Un écart n'est jamais livré comme constat brut : il est routé à S1 dans le même tour, le Capitaine reçoit l'issue."
+  - "Aucun agent actif sans reçu (mission_id + SHA complet 40 hex). R10."

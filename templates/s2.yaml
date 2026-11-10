@@ -1,0 +1,27 @@
+# Rig S2 — Close of the Loop (les méta-superviseurs)
+# Source canonique : V5 AGENTS.md §8 (Architecture Holonique 3 OS).
+# Créé au pas 1 de D-N051 (automaton) — §D11 du design.
+# Le graphe (memory.jsonl) est le miroir : un seul sens template → graphe.
+name: s2
+title: "S2 — Close of the Loop"
+source: "V5 AGENTS.md §8"
+role: "Méta-superviseurs logés sur la Mezzanine des Managers (Agent-Office) de chaque étage. Traduisent les IPBD en PRD et exécutent les Wargames préventifs."
+seats:
+  lead:
+    holon: 13e Doctor
+    role: "Kernel Core. Validation technique et exécution (merges, pushs via ses propres primitives). Détient l'AUTORITÉ PLEINE sur le noyau."
+  worker:
+    - holon: 11e Doctor
+      role: "Life Core. Structure Life OS (L1) et Areas OS (L2)."
+    - holon: 12e Doctor
+      role: "Buzz Core. Recherche, design, dispatch (Bill, Clara, Nardole)."
+  reviewer:
+    holon: S1-RICK
+    role: "Le veto épistémique. Aucun design S2 ne part sans sa structure (BYB)."
+  kernel_operator:
+    holon: S3-GRAHAM
+    role: "État, ledger, provenance. Tient le registre des reçus R10 et la preuve temporelle."
+rules:
+  - "Un design S2 n'exécute rien sans la signature de Clara et le jugement du 13e."
+  - "Les arbitrages vision remontent à Rick (S1), jamais directement au Capitaine."
+  - "Documenté ≠ installé ≠ authentifié ≠ exécuté ≠ vérifié. Seule la preuve à l'API fait foi."

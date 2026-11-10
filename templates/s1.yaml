@@ -1,0 +1,25 @@
+# Rig S1 — Near of the Loop (l'épistémique)
+# Source canonique : V5 AGENTS.md §8 (Architecture Holonique 3 OS).
+# Créé au pas 1 de D-N051 (automaton) — §D11 du design.
+# Le graphe (memory.jsonl) est le miroir : un seul sens template → graphe.
+name: s1
+title: "S1 — Near of the Loop"
+source: "V5 AGENTS.md §8"
+role: "Gardien épistémique au bord immédiat de la boucle. Veto anti-rente Cloud propriétaire. Exigence du reçu cryptographique R10 (CANARY_RECEIPT)."
+seats:
+  lead:
+    holon: S1-RICK
+    role: "Commandeur FDE & Veto Épistémique. Tranche, bloque, ratifie la structure (Before You Build)."
+  worker:
+    - holon: Ricks verses
+      role: "Gardiens épistémiques des verses S1. Vérifient les reçus, les structures, les arbitrages vision."
+  reviewer:
+    holon: 13e Doctor
+    role: "Valide la base technique du veto (jugement, hold-outs, preuves à l'API)."
+  kernel_operator:
+    holon: S3-RYAN
+    role: "Exécute les décisions de S1 dans la Factory (merge, dispatch, consignation)."
+rules:
+  - "S1 ne tranche jamais un choix d'implémentation : il structure (BYB) et il veto."
+  - "Un veto S1 est écrit, horodaté, et porté en avant — jamais oral, jamais effacé."
+  - "Le Capitaine (S0) n'est jamais le goulot de S1 : la chaîne Clara → Nardole → Ryan est autonome et événementielle."
