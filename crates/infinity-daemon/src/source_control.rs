@@ -31,7 +31,12 @@
 //! against the file content fetched at the requested ref. Any mismatch
 //! (truncated history, missing patch, line-count drift) is an error, not
 //! a silent wrong attribution. The cap keeps the query cheap; a file with
-//! more touching commits than the cap is refused with a reason.
+//! more touching commits than the cap is refused with a reason. One case
+//! the `commits?path=` list hides: a file introduced by a merge — the
+//! list names the merge (no files entry) instead of the branch commit
+//! that created the file. The replay detects it (file absent at the
+//! merge's first parent) and seeds from the merge's content, attributed
+//! to the merge; without this the replay would start mid-file.
 //!
 //! **No clone, ever.** This module never invokes `git`, never spawns a
 //! subprocess, never writes a checkout. The only outbound traffic is
@@ -495,8 +500,20 @@ impl<T: SourceControlTransport> SourceControlClient<T> {
                 }
             }
             let Some(f) = entry else {
-                // Commit listed for the path but carries no entry for it
-                // (rename edge): skip it rather than guessing.
+                // No entry for the path: typically a merge commit, whose
+                // files list is empty. If the merge introduced the file
+                // (absent at its first parent, present here), seed the
+                // replay from the content at this commit, attributed to
+                // it. Otherwise this commit changed nothing for the path.
+                if lines.is_empty()
+                    && let Some(seeded) = self
+                        .merge_introduction_content(owner, repo, path, &commit, sha)
+                        .await?
+                {
+                    attrib = vec![sha.clone(); seeded.len()];
+                    lines = seeded;
+                    seen_creation = true;
+                }
                 continue;
             };
             let status = f.get("status").and_then(|s| s.as_str()).unwrap_or("");
@@ -509,18 +526,7 @@ impl<T: SourceControlTransport> SourceControlClient<T> {
             if status == "renamed" {
                 // A rename carries no content patch: the content at this
                 // commit becomes the base, attributed to this commit.
-                let renamed_url = format!(
-                    "{}/repos/{}/{}/contents/{}?ref={}",
-                    self.base_url,
-                    encode_segment(owner),
-                    encode_segment(repo),
-                    encode_path(path),
-                    encode_segment(sha)
-                );
-                let renamed_v = self.transport.get_json(&renamed_url).await?;
-                let renamed_raw = decode_base64(&req_str(&renamed_v, "content")?)?;
-                let renamed_text = String::from_utf8(renamed_raw)?;
-                lines = split_lines(&renamed_text);
+                lines = self.fetch_content(owner, repo, path, sha).await?;
                 attrib = vec![sha.clone(); lines.len()];
                 seen_creation = true;
                 continue;
@@ -545,19 +551,7 @@ impl<T: SourceControlTransport> SourceControlClient<T> {
 
         // 3. Verify against the content at the ref — never trust the
         // replay alone.
-        let content_url = format!(
-            "{}/repos/{}/{}/contents/{}?ref={}",
-            self.base_url,
-            encode_segment(owner),
-            encode_segment(repo),
-            encode_path(path),
-            encode_segment(ref_)
-        );
-        let content_v = self.transport.get_json(&content_url).await?;
-        let encoded = req_str(&content_v, "content")?;
-        let raw = decode_base64(&encoded)?;
-        let at_ref = String::from_utf8(raw)?;
-        let at_ref_lines = split_lines(&at_ref);
+        let at_ref_lines = self.fetch_content(owner, repo, path, ref_).await?;
         if at_ref_lines.len() != lines.len() || at_ref_lines != lines {
             return Err(Box::new(BlameError::ContentMismatch {
                 replayed: lines.len(),
@@ -589,6 +583,83 @@ impl<T: SourceControlTransport> SourceControlClient<T> {
             served_by: "github-api".to_owned(),
             clone: false,
         })
+    }
+
+    /// File content at a ref, as lines, via the contents API.
+    async fn fetch_content(
+        &self,
+        owner: &str,
+        repo: &str,
+        path: &str,
+        ref_: &str,
+    ) -> Result<Vec<String>, BoxError> {
+        let url = format!(
+            "{}/repos/{}/{}/contents/{}?ref={}",
+            self.base_url,
+            encode_segment(owner),
+            encode_segment(repo),
+            encode_path(path),
+            encode_segment(ref_)
+        );
+        let v = self.transport.get_json(&url).await?;
+        let raw = decode_base64(&req_str(&v, "content")?)?;
+        Ok(split_lines(&String::from_utf8(raw)?))
+    }
+
+    /// True when the path exists at a ref; a 404 means absent, any other
+    /// error propagates. The transport reports the HTTP status in its
+    /// error text, which is what this matches on.
+    async fn content_exists(
+        &self,
+        owner: &str,
+        repo: &str,
+        path: &str,
+        ref_: &str,
+    ) -> Result<bool, BoxError> {
+        let url = format!(
+            "{}/repos/{}/{}/contents/{}?ref={}",
+            self.base_url,
+            encode_segment(owner),
+            encode_segment(repo),
+            encode_path(path),
+            encode_segment(ref_)
+        );
+        match self.transport.get_json(&url).await {
+            Ok(_) => Ok(true),
+            Err(e) if e.to_string().contains(" 404 ") => Ok(false),
+            Err(e) => Err(e),
+        }
+    }
+
+    /// The content at `commit` when that commit (a merge: no files entry
+    /// for the path) introduced the file — i.e. the file is absent at the
+    /// merge's first parent. `None` when the file already existed at the
+    /// parent (a true no-op merge for this path) or the commit has no
+    /// first parent. This is the case the `commits?path=` list hides:
+    /// GitHub lists the merge but not the branch commit that created
+    /// the file, so without this the replay would start mid-file and
+    /// refuse with `NoCreationCommit`.
+    async fn merge_introduction_content(
+        &self,
+        owner: &str,
+        repo: &str,
+        path: &str,
+        commit: &serde_json::Value,
+        sha: &str,
+    ) -> Result<Option<Vec<String>>, BoxError> {
+        let Some(parent) = commit
+            .get("parents")
+            .and_then(|p| p.as_array())
+            .and_then(|p| p.first())
+            .and_then(|p| p.get("sha"))
+            .and_then(|s| s.as_str())
+        else {
+            return Ok(None);
+        };
+        if self.content_exists(owner, repo, path, parent).await? {
+            return Ok(None);
+        }
+        Ok(Some(self.fetch_content(owner, repo, path, sha).await?))
     }
 }
 

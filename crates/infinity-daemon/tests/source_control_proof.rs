@@ -57,13 +57,38 @@ fn commit_fixture(sha: &str) -> serde_json::Value {
             "files": [{"filename": "hello.txt", "status": "modified",
                        "patch": "@@ -1,3 +1,3 @@\n one\n-two\n+TWO\n three\n"}]
         }),
+        // Merge that introduced the file: no files entry, one parent.
+        "m333" => serde_json::json!({
+            "sha": "m333",
+            "parents": [{"sha": "p000"}],
+            "files": []
+        }),
+        "c444" => serde_json::json!({
+            "sha": "c444",
+            "files": [{"filename": "hello-merge.txt", "status": "modified",
+                       "patch": "@@ -1,3 +1,3 @@\n one\n-two\n+TWO\n three\n"}]
+        }),
         _ => serde_json::json!({"sha": sha, "files": []}),
     }
 }
 
+fn commits_list_merge_fixture() -> serde_json::Value {
+    // Newest first: a modification, then the introducing merge.
+    serde_json::json!([
+        {"sha": "c444"},
+        {"sha": "m333"}
+    ])
+}
+
 fn contents_fixture() -> serde_json::Value {
-    // "one\nTWO\nthree\n" base64-encoded.
+    // "one\nTWO\nthree\n" base64-encoded (final state).
     serde_json::json!({"content": "b25lClRXTwp0aHJlZQo=\n", "encoding": "base64"})
+}
+
+fn contents_before_fixture() -> serde_json::Value {
+    // "one\ntwo\nthree\n" base64-encoded (state at the introducing
+    // merge m333, before the c444 modification).
+    serde_json::json!({"content": "b25lCnR3bwp0aHJlZQo=\n", "encoding": "base64"})
 }
 
 /// One-shot loopback stub: serves the fixtures above by request path.
@@ -104,14 +129,38 @@ async fn stub_server() -> String {
                     .nth(1)
                     .unwrap_or("")
                     .to_owned();
+                // The merge-introduction probe: the file is absent at the
+                // merge's first parent.
+                if path.contains("/contents/") && path.contains("ref=p000") {
+                    let body = r#"{"message":"Not Found"}"#;
+                    let _ = stream
+                        .write_all(
+                            format!(
+                                "HTTP/1.1 404 Not Found\r\ncontent-type: application/json\r\ncontent-length: {}\r\n\r\n{}",
+                                body.len(),
+                                body
+                            )
+                            .as_bytes(),
+                        )
+                        .await;
+                    return;
+                }
                 let body = if path.contains("/compare/") {
                     compare_fixture()
+                } else if path.contains("/commits?") && path.contains("hello-merge.txt") {
+                    commits_list_merge_fixture()
                 } else if path.contains("/commits?") {
                     commits_list_fixture()
                 } else if path.contains("/commits/c111") {
                     commit_fixture("c111")
                 } else if path.contains("/commits/c222") {
                     commit_fixture("c222")
+                } else if path.contains("/commits/m333") {
+                    commit_fixture("m333")
+                } else if path.contains("/commits/c444") {
+                    commit_fixture("c444")
+                } else if path.contains("/contents/") && path.contains("ref=m333") {
+                    contents_before_fixture()
                 } else if path.contains("/contents/") {
                     contents_fixture()
                 } else {
@@ -199,6 +248,29 @@ async fn diff_blame_ancestor_without_clone() {
 
     // Unknown query names are an error, not a guess.
     assert!(Query::parse("merge").is_err());
+}
+
+#[tokio::test]
+async fn blame_merge_introduced_file() {
+    // The file's creation commit is hidden by a merge: the
+    // `commits?path=` list names the merge (no files entry) instead.
+    // The replay seeds from the merge's content — attributed to the
+    // merge — instead of refusing or misattributing.
+    let base = stub_server().await;
+    let client = stub_client(&base);
+    let blame = client
+        .blame("Amdkn", "Aspace_OS_V5", "hello-merge.txt", "c444")
+        .await
+        .expect("stub blame (merge-introduced)");
+    assert_eq!(blame.lines.len(), 3);
+    assert_eq!(blame.lines[0].sha, "m333");
+    assert_eq!(blame.lines[0].text, "one");
+    assert_eq!(blame.lines[1].sha, "c444");
+    assert_eq!(blame.lines[1].text, "TWO");
+    assert_eq!(blame.lines[2].sha, "m333");
+    assert_eq!(blame.lines[2].text, "three");
+    assert_eq!(blame.commits, vec!["m333", "c444"]);
+    assert!(!blame.clone);
 }
 
 #[tokio::test]
