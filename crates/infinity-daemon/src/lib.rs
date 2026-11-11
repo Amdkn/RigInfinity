@@ -9,11 +9,23 @@
 //! UI is NOT ported either (UI surface — local clients use the Unix
 //! socket, remote tools use RAP). The daemon is local-first: every
 //! listener binds 127.0.0.1 only (D6), never 0.0.0.0.
+//!
+//! D-N051 F8 pas 4 — the OpenRig daemon is retired: its three functions
+//! live here as native modules (`openrig_state` for the SQLite state,
+//! `openrig_context_packs` for the context packs, `openrig_terminal`
+//! for the Herdr socket transport, `openrig_lineage` for the ULID
+//! lineage scheduler that replaces the bind's `Date.now()` spawner).
+//! The Hono HTTP server is NOT ported — its routes are re-implemented
+//! here, in Rust, not copied.
 
 pub mod client;
 pub mod http;
 pub mod mcp_proxy;
 pub mod memory_store;
+pub mod openrig_context_packs;
+pub mod openrig_lineage;
+pub mod openrig_state;
+pub mod openrig_terminal;
 pub mod rap;
 pub mod rap_callback;
 pub mod rap_servers;

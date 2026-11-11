@@ -21,6 +21,8 @@ reqwest = { workspace = true }
 async-trait = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+rusqlite = { workspace = true }
+serde_yaml = { workspace = true }
 
 [lints]
 workspace = true
