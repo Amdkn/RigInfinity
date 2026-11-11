@@ -28,6 +28,16 @@
 //! SQLite, context-packs, Herdr terminal) are a NAMED DEPENDENCY
 //! (§D8): this pas ports against the pas-3 base, it does not await
 //! them — they are present in this tree from pas 4.
+//!
+//! D-N052 R2 (= F8 pas 6) — the prime-agent recursion engine is
+//! native: its four functions live here as native modules
+//! (`prime_agent_rlm` for spawn/collect/end_turn with bounded
+//! recursion, `prime_agent_refine` for the Continual Harness with
+//! its durable JSON store, `prime_agent_runtime` for the Python REPL
+//! as a re-pointed surface, `prime_agent_daemon` for `pa-daemon` as
+//! a reference that is never launched). The fork's default-ON
+//! analytics endpoint is NOT ported (H-M4); no provider key is read
+//! (D9); no second daemon is ever launched (H-F8-1, H-F8-2).
 
 pub mod agent;
 pub mod client;
@@ -40,6 +50,10 @@ pub mod openrig_context_packs;
 pub mod openrig_lineage;
 pub mod openrig_state;
 pub mod openrig_terminal;
+pub mod prime_agent_daemon;
+pub mod prime_agent_refine;
+pub mod prime_agent_rlm;
+pub mod prime_agent_runtime;
 pub mod provider;
 pub mod rap;
 pub mod rap_callback;
