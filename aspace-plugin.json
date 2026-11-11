@@ -12,7 +12,8 @@
     "openrig_demo_qc_578_holons",
     "infinity_daemon_rap_protocol",
     "reviewer_security_owasp_top10",
-    "source_control_natif_read_api"
+    "source_control_natif_read_api",
+    "source_control_natif_changeset_wal"
   ],
   "a0_integration_target": "02_Factory/01_Kernel_Gates/daemon_supervisor_cordis.py",
   "egm_gateway_endpoint": "http://127.0.0.1:31415/v1/chat/completions"

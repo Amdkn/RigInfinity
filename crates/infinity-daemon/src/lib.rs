@@ -34,8 +34,15 @@
 //! ancestor live at SC-1, served above the GitHub API without a clone;
 //! receipt, judgment, holdout structured-pending until SC-3/SC-4/SC-5).
 //! No code is copied from `CarterT27/scion` (reference only, clean-room).
+//!
+//! D-N054 SC-2 — the changeset WAL lives here as the `changeset`
+//! module: one append-only entry per changeset, content-addressed
+//! pointers (SHA-256), the factory SQLite store extended — not
+//! duplicated — with WAL mode on. No code is copied from
+//! `CarterT27/scion` (reference only, clean-room).
 
 pub mod agent;
+pub mod changeset;
 pub mod client;
 pub mod http;
 pub mod job;
