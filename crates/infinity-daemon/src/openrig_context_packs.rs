@@ -68,10 +68,10 @@ pub struct ContextPack {
 impl ContextPack {
     /// The pack's name: the manifest name, or the directory name.
     pub fn name(&self) -> String {
-        if let Some(name) = &self.manifest.name {
-            if !name.is_empty() {
-                return name.clone();
-            }
+        if let Some(name) = &self.manifest.name
+            && !name.is_empty()
+        {
+            return name.clone();
         }
         self.dir
             .file_name()
@@ -122,7 +122,12 @@ pub fn load_pack(dir: &Path) -> Result<ContextPack, BoxError> {
         .map_err(|e| format!("cannot parse {}: {e}", manifest_path.display()))?;
     let errors = validate_manifest(&manifest);
     if !errors.is_empty() {
-        return Err(format!("invalid manifest {}: {}", manifest_path.display(), errors.join("; ")).into());
+        return Err(format!(
+            "invalid manifest {}: {}",
+            manifest_path.display(),
+            errors.join("; ")
+        )
+        .into());
     }
     let mut contents = HashMap::new();
     for file in &manifest.files {
@@ -131,7 +136,11 @@ pub fn load_pack(dir: &Path) -> Result<ContextPack, BoxError> {
             .map_err(|e| format!("cannot read pack file {}: {e}", path.display()))?;
         contents.insert(file.path.clone(), content);
     }
-    Ok(ContextPack { manifest, dir: dir.to_path_buf(), contents })
+    Ok(ContextPack {
+        manifest,
+        dir: dir.to_path_buf(),
+        contents,
+    })
 }
 
 /// The default context-pack root: `$OPENRIG_HOME/context`.
@@ -160,7 +169,11 @@ impl ContextPackLibrary {
         let entries = match std::fs::read_dir(root) {
             Ok(entries) => entries,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(loaded),
-            Err(e) => return Err(format!("cannot list context-pack root {}: {e}", root.display()).into()),
+            Err(e) => {
+                return Err(
+                    format!("cannot list context-pack root {}: {e}", root.display()).into(),
+                );
+            }
         };
         let mut dirs: Vec<PathBuf> = Vec::new();
         for entry in entries {
@@ -205,8 +218,8 @@ mod tests {
     /// A fresh temp dir per test — the tests run in parallel, so the dir
     /// name must be unique per test (a shared dir races on remove_dir_all).
     fn test_pack_dir(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir()
-            .join(format!("openrig-pack-test-{}-{name}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("openrig-pack-test-{}-{name}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).expect("create pack dir");
         dir
@@ -230,7 +243,10 @@ mod tests {
         let pack = load_pack(&dir).expect("load pack");
         assert_eq!(pack.name(), "proof-packet");
         assert_eq!(pack.manifest.taxonomy, "mission");
-        assert_eq!(pack.contents.get("brief.md").map(String::as_str), Some("# Brief\n"));
+        assert_eq!(
+            pack.contents.get("brief.md").map(String::as_str),
+            Some("# Brief\n")
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 

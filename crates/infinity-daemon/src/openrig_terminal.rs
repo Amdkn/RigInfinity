@@ -26,10 +26,10 @@ use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
-use crate::openrig_lineage::generate_ulid;
 use crate::BoxError;
+use crate::openrig_lineage::generate_ulid;
 
 /// Default Herdr control-socket path (upstream default).
 pub const HERDR_DEFAULT_SOCKET: &str = "~/.config/herdr/herdr.sock";
@@ -73,7 +73,10 @@ pub struct HerdrPane {
 /// otherwise the default under the config home. A named session
 /// (`HERDR_SESSION`) selects a per-session socket when given.
 pub fn resolve_herdr_socket_path() -> PathBuf {
-    if let Some(path) = std::env::var("HERDR_SOCKET_PATH").ok().filter(|v| !v.is_empty()) {
+    if let Some(path) = std::env::var("HERDR_SOCKET_PATH")
+        .ok()
+        .filter(|v| !v.is_empty())
+    {
         return PathBuf::from(path);
     }
     let config_home = std::env::var("XDG_CONFIG_HOME")
@@ -85,7 +88,9 @@ pub fn resolve_herdr_socket_path() -> PathBuf {
                 .map(|home| PathBuf::from(home).join(".config"))
                 .unwrap_or_else(|_| PathBuf::from(".config"))
         });
-    let session = std::env::var("HERDR_SESSION").ok().filter(|v| !v.is_empty());
+    let session = std::env::var("HERDR_SESSION")
+        .ok()
+        .filter(|v| !v.is_empty());
     match session {
         Some(name) => config_home.join("herdr").join(format!("{name}.sock")),
         None => config_home.join("herdr").join("herdr.sock"),
@@ -103,11 +108,18 @@ pub struct HerdrClient {
 impl HerdrClient {
     /// Connect to a Herdr control socket (default: `resolve_herdr_socket_path()`).
     pub fn connect(socket_path: &Path) -> Result<Self, BoxError> {
-        let stream = UnixStream::connect(socket_path)
-            .map_err(|e| format!("cannot connect to herdr socket {}: {e}", socket_path.display()))?;
+        let stream = UnixStream::connect(socket_path).map_err(|e| {
+            format!(
+                "cannot connect to herdr socket {}: {e}",
+                socket_path.display()
+            )
+        })?;
         stream.set_read_timeout(Some(HERDR_SOCKET_TIMEOUT))?;
         stream.set_write_timeout(Some(HERDR_SOCKET_TIMEOUT))?;
-        Ok(Self { reader: BufReader::new(stream), socket_path: socket_path.to_path_buf() })
+        Ok(Self {
+            reader: BufReader::new(stream),
+            socket_path: socket_path.to_path_buf(),
+        })
     }
 
     pub fn socket_path(&self) -> &Path {
@@ -151,7 +163,10 @@ impl HerdrClient {
         let result = self.request("ping", json!({}))?;
         Ok(HerdrProbeResult {
             alive: true,
-            version: result.get("version").and_then(|v| v.as_str()).map(str::to_string),
+            version: result
+                .get("version")
+                .and_then(|v| v.as_str())
+                .map(str::to_string),
             protocol: result.get("protocol").and_then(|v| v.as_u64()),
         })
     }
@@ -169,7 +184,10 @@ impl HerdrClient {
 
     /// Create a workspace (`workspace.create`, unfocused).
     pub fn create_workspace(&mut self, label: &str) -> Result<Value, BoxError> {
-        self.request("workspace.create", json!({ "focus": false, "label": label }))
+        self.request(
+            "workspace.create",
+            json!({ "focus": false, "label": label }),
+        )
     }
 
     /// List the panes of a workspace (`pane.list`).
@@ -178,15 +196,28 @@ impl HerdrClient {
         let mut panes = Vec::new();
         if let Some(list) = result.get("panes").and_then(|v| v.as_array()) {
             for pane in list {
-                let id = pane.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+                let id = pane
+                    .get("id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default()
+                    .to_string();
                 if id.is_empty() {
                     continue;
                 }
                 panes.push(HerdrPane {
                     id,
-                    workspace_id: pane.get("workspace_id").and_then(|v| v.as_str()).map(str::to_string),
-                    session: pane.get("session").and_then(|v| v.as_str()).map(str::to_string),
-                    seat_id: pane.get("seat_id").and_then(|v| v.as_str()).map(str::to_string),
+                    workspace_id: pane
+                        .get("workspace_id")
+                        .and_then(|v| v.as_str())
+                        .map(str::to_string),
+                    session: pane
+                        .get("session")
+                        .and_then(|v| v.as_str())
+                        .map(str::to_string),
+                    seat_id: pane
+                        .get("seat_id")
+                        .and_then(|v| v.as_str())
+                        .map(str::to_string),
                 });
             }
         }
@@ -195,7 +226,10 @@ impl HerdrClient {
 
     /// Apply a layout to a workspace (`layout.apply`).
     pub fn apply_layout(&mut self, workspace_id: &str, layout: Value) -> Result<Value, BoxError> {
-        self.request("layout.apply", json!({ "workspace_id": workspace_id, "layout": layout }))
+        self.request(
+            "layout.apply",
+            json!({ "workspace_id": workspace_id, "layout": layout }),
+        )
     }
 
     /// Focus a tab (`tab.focus`).
@@ -209,7 +243,11 @@ impl HerdrClient {
     }
 
     /// Report an agent session on a pane (`pane.report_agent_session`).
-    pub fn report_agent_session(&mut self, pane_id: &str, session: Value) -> Result<Value, BoxError> {
+    pub fn report_agent_session(
+        &mut self,
+        pane_id: &str,
+        session: Value,
+    ) -> Result<Value, BoxError> {
         self.request(
             "pane.report_agent_session",
             json!({ "pane_id": pane_id, "session": session }),
@@ -233,7 +271,8 @@ impl HerdrSessionRegistry {
 
     /// Register a seat in a Herdr workspace.
     pub fn register_seat(&mut self, seat_id: &str, workspace_label: &str) {
-        self.seats.insert(seat_id.to_string(), workspace_label.to_string());
+        self.seats
+            .insert(seat_id.to_string(), workspace_label.to_string());
     }
 
     /// Unregister a seat (torn down).
@@ -290,7 +329,9 @@ mod tests {
                 let method = request.get("method").and_then(|v| v.as_str()).unwrap_or("");
                 let id = request.get("id").cloned().unwrap_or(json!("0"));
                 let answer = match method {
-                    "ping" => json!({ "id": id, "result": { "type": "pong", "version": "0.7.1", "protocol": 1 } }),
+                    "ping" => {
+                        json!({ "id": id, "result": { "type": "pong", "version": "0.7.1", "protocol": 1 } })
+                    }
                     "workspace.list" => {
                         json!({ "id": id, "result": { "type": "workspaces", "workspaces": [{ "id": "ws-1", "label": "build" }] } })
                     }
@@ -307,7 +348,10 @@ mod tests {
     /// A fresh temp socket path per test — the tests run in parallel, so
     /// the path must be unique per test (a shared path races on bind).
     fn test_socket_path(name: &str) -> PathBuf {
-        std::env::temp_dir().join(format!("openrig-herdr-test-{}-{name}.sock", std::process::id()))
+        std::env::temp_dir().join(format!(
+            "openrig-herdr-test-{}-{name}.sock",
+            std::process::id()
+        ))
     }
 
     #[test]
@@ -322,7 +366,10 @@ mod tests {
         assert_eq!(probe.protocol, Some(1));
         let workspaces = client.list_workspaces().expect("list workspaces");
         assert_eq!(workspaces.len(), 1);
-        assert_eq!(workspaces[0].get("label").and_then(|v| v.as_str()), Some("build"));
+        assert_eq!(
+            workspaces[0].get("label").and_then(|v| v.as_str()),
+            Some("build")
+        );
         drop(client);
         handle.join().expect("mock thread ends");
         let _ = std::fs::remove_file(&path);
@@ -334,7 +381,9 @@ mod tests {
         let _ = std::fs::remove_file(&path);
         let handle = mock_herdr(&path);
         let mut client = HerdrClient::connect(&path).expect("connect to mock herdr");
-        let err = client.request("workspace.create", json!({})).expect_err("mock answers error");
+        let err = client
+            .request("workspace.create", json!({}))
+            .expect_err("mock answers error");
         assert!(err.to_string().contains("unknown method"), "{err}");
         drop(client);
         handle.join().expect("mock thread ends");
@@ -347,13 +396,34 @@ mod tests {
         registry.register_seat("build", "ws-build");
         registry.register_seat("review", "ws-review");
         let panes = vec![
-            HerdrPane { id: "pane-1".to_string(), workspace_id: Some("ws-build".to_string()), session: None, seat_id: Some("build".to_string()) },
-            HerdrPane { id: "pane-2".to_string(), workspace_id: Some("ws-review".to_string()), session: Some("review".to_string()), seat_id: None },
-            HerdrPane { id: "pane-3".to_string(), workspace_id: None, session: None, seat_id: Some("ghost".to_string()) },
+            HerdrPane {
+                id: "pane-1".to_string(),
+                workspace_id: Some("ws-build".to_string()),
+                session: None,
+                seat_id: Some("build".to_string()),
+            },
+            HerdrPane {
+                id: "pane-2".to_string(),
+                workspace_id: Some("ws-review".to_string()),
+                session: Some("review".to_string()),
+                seat_id: None,
+            },
+            HerdrPane {
+                id: "pane-3".to_string(),
+                workspace_id: None,
+                session: None,
+                seat_id: Some("ghost".to_string()),
+            },
         ];
-        assert_eq!(registry.list_orphan_panes(&panes), vec!["pane-3".to_string()]);
+        assert_eq!(
+            registry.list_orphan_panes(&panes),
+            vec!["pane-3".to_string()]
+        );
         registry.unregister_seat("build");
-        assert_eq!(registry.list_orphan_panes(&panes), vec!["pane-1".to_string(), "pane-3".to_string()]);
+        assert_eq!(
+            registry.list_orphan_panes(&panes),
+            vec!["pane-1".to_string(), "pane-3".to_string()]
+        );
     }
 
     #[test]
@@ -361,6 +431,9 @@ mod tests {
         // SAFETY: env vars are process-global; this test only reads them.
         let path = resolve_herdr_socket_path();
         let text = path.to_string_lossy();
-        assert!(text.ends_with("herdr.sock") || text.ends_with(".sock"), "{text}");
+        assert!(
+            text.ends_with("herdr.sock") || text.ends_with(".sock"),
+            "{text}"
+        );
     }
 }

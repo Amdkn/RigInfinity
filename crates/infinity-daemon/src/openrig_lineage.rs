@@ -184,7 +184,11 @@ fn clean_part(s: &str) -> String {
         }
     }
     let trimmed = out.trim_matches('-').to_string();
-    if trimmed.is_empty() { "X".to_string() } else { trimmed }
+    if trimmed.is_empty() {
+        "X".to_string()
+    } else {
+        trimmed
+    }
 }
 
 #[cfg(test)]
@@ -213,7 +217,8 @@ mod tests {
     fn spawn_round_trips() {
         let scheduler = LineageScheduler::new();
         let rig_id = scheduler.spawn_rig_id("A0", "clara");
-        let (area, holon, ulid) = LineageScheduler::parse_rig_id(&rig_id).expect("parse spawned id");
+        let (area, holon, ulid) =
+            LineageScheduler::parse_rig_id(&rig_id).expect("parse spawned id");
         assert_eq!(area, "A0");
         assert_eq!(holon, "CLARA");
         assert!(is_ulid(&ulid));
@@ -221,7 +226,10 @@ mod tests {
             LineageScheduler::worktree_path(&rig_id),
             format!(".worktrees/{rig_id}")
         );
-        assert_eq!(LineageScheduler::parse_rig_id("RIG-A0-CLARA-1234567890"), None);
+        assert_eq!(
+            LineageScheduler::parse_rig_id("RIG-A0-CLARA-1234567890"),
+            None
+        );
         assert_eq!(LineageScheduler::parse_rig_id("not-a-rig"), None);
     }
 
@@ -232,7 +240,10 @@ mod tests {
         assert!(record.rig_id.starts_with("RIG-A0-CLARA-"));
         assert_eq!(record.area_code, "A0");
         assert_eq!(record.child_holon, "CLARA");
-        assert_eq!(record.worktree_path, format!(".worktrees/{}", record.rig_id));
+        assert_eq!(
+            record.worktree_path,
+            format!(".worktrees/{}", record.rig_id)
+        );
         assert_eq!(record.spawned_at, "2026-11-10T00:00:00Z");
     }
 }

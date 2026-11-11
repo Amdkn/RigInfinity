@@ -237,7 +237,8 @@ pub fn resolve_db_path(openrig_home: &Path) -> Result<PathBuf, BoxError> {
         return Ok(PathBuf::from(explicit));
     }
     let db_path = openrig_home.join("openrig.sqlite");
-    let resolved_home = std::fs::canonicalize(openrig_home).unwrap_or_else(|_| openrig_home.to_path_buf());
+    let resolved_home =
+        std::fs::canonicalize(openrig_home).unwrap_or_else(|_| openrig_home.to_path_buf());
     let resolved_db = std::fs::canonicalize(&db_path).unwrap_or_else(|_| db_path.clone());
     if !resolved_db.starts_with(&resolved_home) {
         return Err(format!(
@@ -309,7 +310,12 @@ impl OpenRigStateStore {
             "INSERT INTO rigs (id, name, created_at, updated_at) VALUES (?1, ?2, ?3, ?3)",
             params![id, name, now],
         )?;
-        Ok(Rig { id: id.to_string(), name: name.to_string(), created_at: now.clone(), updated_at: now })
+        Ok(Rig {
+            id: id.to_string(),
+            name: name.to_string(),
+            created_at: now.clone(),
+            updated_at: now,
+        })
     }
 
     pub fn get_rig(&self, id: &str) -> Result<Option<Rig>, BoxError> {
@@ -418,7 +424,13 @@ impl OpenRigStateStore {
 
     // -- events / usage -----------------------------------------------------
 
-    pub fn record_event(&mut self, rig_id: &str, kind: &str, node_id: Option<&str>, payload_json: &str) -> Result<i64, BoxError> {
+    pub fn record_event(
+        &mut self,
+        rig_id: &str,
+        kind: &str,
+        node_id: Option<&str>,
+        payload_json: &str,
+    ) -> Result<i64, BoxError> {
         self.conn.execute(
             "INSERT INTO events (rig_id, kind, node_id, payload_json, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
             params![rig_id, kind, node_id, payload_json, iso_now()],
@@ -504,7 +516,9 @@ mod tests {
     use super::*;
 
     fn test_rig(store: &mut OpenRigStateStore) {
-        let rig = store.create_rig("RIG-A0-CLARA-01ARZ3NDEKTSV4RRFFQ69G5FA", "starter").expect("create rig");
+        let rig = store
+            .create_rig("RIG-A0-CLARA-01ARZ3NDEKTSV4RRFFQ69G5FA", "starter")
+            .expect("create rig");
         assert_eq!(rig.name, "starter");
         store
             .add_pod(&Pod {
@@ -581,7 +595,10 @@ mod tests {
     #[test]
     fn rig_round_trip_and_nodes() {
         let mut store = OpenRigStateStore::open_in_memory().expect("open memory store");
-        assert_eq!(store.schema_version().expect("schema version"), OPENRIG_STATE_SCHEMA_VERSION);
+        assert_eq!(
+            store.schema_version().expect("schema version"),
+            OPENRIG_STATE_SCHEMA_VERSION
+        );
         test_rig(&mut store);
         let rig = store
             .get_rig("RIG-A0-CLARA-01ARZ3NDEKTSV4RRFFQ69G5FA")
@@ -625,15 +642,25 @@ mod tests {
     #[test]
     fn usage_series_filters_by_seat_and_window() {
         let mut store = OpenRigStateStore::open_in_memory().expect("open memory store");
-        store.record_usage_sample(Some("sess-a"), Some("context"), Some(100), Some(2)).expect("sample");
-        store.record_usage_sample(Some("sess-b"), Some("context"), Some(50), Some(1)).expect("sample");
-        store.record_usage_sample(Some("sess-a"), Some("provider_window"), Some(10), None).expect("sample");
+        store
+            .record_usage_sample(Some("sess-a"), Some("context"), Some(100), Some(2))
+            .expect("sample");
+        store
+            .record_usage_sample(Some("sess-b"), Some("context"), Some(50), Some(1))
+            .expect("sample");
+        store
+            .record_usage_sample(Some("sess-a"), Some("provider_window"), Some(10), None)
+            .expect("sample");
         let all = store.usage_series(None, None, None, 10).expect("series");
         assert_eq!(all.len(), 3);
-        let a = store.usage_series(Some("sess-a"), None, None, 10).expect("series");
+        let a = store
+            .usage_series(Some("sess-a"), None, None, 10)
+            .expect("series");
         assert_eq!(a.len(), 2);
         assert_eq!(a[0].tokens, Some(100));
-        let empty = store.usage_series(Some("sess-a"), Some("2999-01-01T00:00:00Z"), None, 10).expect("series");
+        let empty = store
+            .usage_series(Some("sess-a"), Some("2999-01-01T00:00:00Z"), None, 10)
+            .expect("series");
         assert!(empty.is_empty());
     }
 
