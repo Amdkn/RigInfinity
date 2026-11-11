@@ -28,6 +28,12 @@
 //! SQLite, context-packs, Herdr terminal) are a NAMED DEPENDENCY
 //! (§D8): this pas ports against the pas-3 base, it does not await
 //! them — they are present in this tree from pas 4.
+//!
+//! D-N054 SC-1 — the native source control read API lives here as the
+//! `source_control` module: the 6-query contract of D4 (diff, blame,
+//! ancestor live at SC-1, served above the GitHub API without a clone;
+//! receipt, judgment, holdout structured-pending until SC-3/SC-4/SC-5).
+//! No code is copied from `CarterT27/scion` (reference only, clean-room).
 
 pub mod agent;
 pub mod client;
@@ -46,6 +52,7 @@ pub mod rap_callback;
 pub mod rap_servers;
 pub mod session;
 pub mod session_store;
+pub mod source_control;
 
 use std::path::PathBuf;
 
