@@ -57,10 +57,10 @@ fn commit_fixture(sha: &str) -> serde_json::Value {
             "files": [{"filename": "hello.txt", "status": "modified",
                        "patch": "@@ -1,3 +1,3 @@\n one\n-two\n+TWO\n three\n"}]
         }),
-        // Merge that introduced the file: no files entry, one parent.
+        // Merge that introduced the file: no files entry, two parents.
         "m333" => serde_json::json!({
             "sha": "m333",
-            "parents": [{"sha": "p000"}],
+            "parents": [{"sha": "p000"}, {"sha": "p001"}],
             "files": []
         }),
         "c444" => serde_json::json!({
@@ -77,6 +77,13 @@ fn commits_list_merge_fixture() -> serde_json::Value {
     serde_json::json!([
         {"sha": "c444"},
         {"sha": "m333"}
+    ])
+}
+
+fn commits_list_root_fixture() -> serde_json::Value {
+    // A file created by the root commit alone.
+    serde_json::json!([
+        {"sha": "r000"}
     ])
 }
 
@@ -149,6 +156,8 @@ async fn stub_server() -> String {
                     compare_fixture()
                 } else if path.contains("/commits?") && path.contains("hello-merge.txt") {
                     commits_list_merge_fixture()
+                } else if path.contains("/commits?") && path.contains("hello-root.txt") {
+                    commits_list_root_fixture()
                 } else if path.contains("/commits?") {
                     commits_list_fixture()
                 } else if path.contains("/commits/c111") {
@@ -159,7 +168,11 @@ async fn stub_server() -> String {
                     commit_fixture("m333")
                 } else if path.contains("/commits/c444") {
                     commit_fixture("c444")
-                } else if path.contains("/contents/") && path.contains("ref=m333") {
+                } else if path.contains("/commits/r000") {
+                    serde_json::json!({"sha": "r000", "parents": [], "files": []})
+                } else if path.contains("/contents/")
+                    && (path.contains("ref=m333") || path.contains("ref=r000"))
+                {
                     contents_before_fixture()
                 } else if path.contains("/contents/") {
                     contents_fixture()
@@ -270,6 +283,29 @@ async fn blame_merge_introduced_file() {
     assert_eq!(blame.lines[2].sha, "m333");
     assert_eq!(blame.lines[2].text, "three");
     assert_eq!(blame.commits, vec!["m333", "c444"]);
+    assert!(!blame.clone);
+}
+
+#[tokio::test]
+async fn blame_root_created_file() {
+    // The file was created by the root commit alone: the API caps
+    // files[] at 300, so a big root commit hides the creation entry.
+    // The replay seeds from the root commit's content, attributed to
+    // it, instead of refusing.
+    let base = stub_server().await;
+    let client = stub_client(&base);
+    let blame = client
+        .blame("Amdkn", "Aspace_OS_V5", "hello-root.txt", "r000")
+        .await
+        .expect("stub blame (root-created)");
+    assert_eq!(blame.lines.len(), 3);
+    assert_eq!(blame.lines[0].sha, "r000");
+    assert_eq!(blame.lines[0].text, "one");
+    assert_eq!(blame.lines[1].sha, "r000");
+    assert_eq!(blame.lines[1].text, "two");
+    assert_eq!(blame.lines[2].sha, "r000");
+    assert_eq!(blame.lines[2].text, "three");
+    assert_eq!(blame.commits, vec!["r000"]);
     assert!(!blame.clone);
 }
 

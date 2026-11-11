@@ -36,7 +36,12 @@
 //! list names the merge (no files entry) instead of the branch commit
 //! that created the file. The replay detects it (file absent at the
 //! merge's first parent) and seeds from the merge's content, attributed
-//! to the merge; without this the replay would start mid-file.
+//! to the merge; without this the replay would start mid-file. A second
+//! case: the API caps a commit's files list at 300 entries, so a big
+//! commit (the root commit of V5 changed 1 631 files) hides the entry
+//! of the file it created or touched. A root commit with no entry seeds
+//! from its own content; any other big commit with no usable entry is a
+//! refusal (`PatchUnavailable`), never a replay with a hole.
 //!
 //! **No clone, ever.** This module never invokes `git`, never spawns a
 //! subprocess, never writes a checkout. The only outbound traffic is
@@ -493,28 +498,65 @@ impl<T: SourceControlTransport> SourceControlClient<T> {
                 .and_then(|f| f.as_array())
                 .ok_or(format!("commit {sha} has no files array"))?;
             let mut entry: Option<&serde_json::Value> = None;
+            let mut renamed_away = false;
             for f in files {
                 if f.get("filename").and_then(|n| n.as_str()) == Some(path) {
                     entry = Some(f);
                     break;
                 }
+                if f.get("previous_filename").and_then(|n| n.as_str()) == Some(path) {
+                    renamed_away = true;
+                }
             }
             let Some(f) = entry else {
-                // No entry for the path: typically a merge commit, whose
-                // files list is empty. If the merge introduced the file
-                // (absent at its first parent, present here), seed the
-                // replay from the content at this commit, attributed to
-                // it. Otherwise this commit changed nothing for the path.
-                if lines.is_empty()
-                    && let Some(seeded) = self
-                        .merge_introduction_content(owner, repo, path, &commit, sha)
-                        .await?
-                {
-                    attrib = vec![sha.clone(); seeded.len()];
-                    lines = seeded;
-                    seen_creation = true;
+                // No entry for the path. Four cases, told apart — never
+                // guessed:
+                // (a) renamed away from this path: the file left it.
+                if renamed_away {
+                    lines.clear();
+                    attrib.clear();
+                    seen_creation = false;
+                    continue;
                 }
-                continue;
+                let parents = commit
+                    .get("parents")
+                    .and_then(|p| p.as_array())
+                    .map(|p| p.len())
+                    .unwrap_or(0);
+                // (b) root commit: it created everything, but the API
+                // caps files[] at 300, so a big root commit hides the
+                // entry. Seed from the content here when the file
+                // exists at this commit.
+                if parents == 0 {
+                    if lines.is_empty() && self.content_exists(owner, repo, path, sha).await? {
+                        lines = self.fetch_content(owner, repo, path, sha).await?;
+                        attrib = vec![sha.clone(); lines.len()];
+                        seen_creation = true;
+                    }
+                    continue;
+                }
+                // (c) merge commit: its files list is empty. If the
+                // merge introduced the file (absent at its first
+                // parent, present here), seed from the content at
+                // this commit, attributed to it. Otherwise this
+                // commit changed nothing for the path.
+                if parents > 1 {
+                    if lines.is_empty()
+                        && let Some(seeded) = self
+                            .merge_introduction_content(owner, repo, path, &commit, sha)
+                            .await?
+                    {
+                        attrib = vec![sha.clone(); seeded.len()];
+                        lines = seeded;
+                        seen_creation = true;
+                    }
+                    continue;
+                }
+                // (d) anything else: the commit touches the path (it
+                // is in the list) but carries no usable entry — the
+                // files list is capped at 300 entries, so a big
+                // commit hides it. Refuse rather than replay a hole.
+                return Err(Box::new(BlameError::PatchUnavailable { sha: sha.clone() }));
             };
             let status = f.get("status").and_then(|s| s.as_str()).unwrap_or("");
             if status == "removed" {
