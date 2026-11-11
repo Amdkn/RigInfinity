@@ -17,15 +17,30 @@
 //! lineage scheduler that replaces the bind's `Date.now()` spawner).
 //! The Hono HTTP server is NOT ported — its routes are re-implemented
 //! here, in Rust, not copied.
+//!
+//! D-N051 F8 pas 5 — the agent-zero engine is native: its four
+//! functions live here as native modules (`agent` for the Agent loop,
+//! `provider` for the gateway-only model client, `memory` for the
+//! unified Shared Brain memory, `job` for the scheduler-as-job-loop).
+//! LiteLLM and provider keys are NOT ported (D9); the cron is NOT
+//! ported (D7); the WebUI server is NOT ported — it stays a surface,
+//! re-pointed at the single daemon (D3). The pas-4 functions (state
+//! SQLite, context-packs, Herdr terminal) are a NAMED DEPENDENCY
+//! (§D8): this pas ports against the pas-3 base, it does not await
+//! them — they are present in this tree from pas 4.
 
+pub mod agent;
 pub mod client;
 pub mod http;
+pub mod job;
 pub mod mcp_proxy;
+pub mod memory;
 pub mod memory_store;
 pub mod openrig_context_packs;
 pub mod openrig_lineage;
 pub mod openrig_state;
 pub mod openrig_terminal;
+pub mod provider;
 pub mod rap;
 pub mod rap_callback;
 pub mod rap_servers;
