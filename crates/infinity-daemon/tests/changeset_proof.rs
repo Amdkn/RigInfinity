@@ -19,10 +19,13 @@ static TMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 fn tmp_path(tag: &str) -> PathBuf {
     let n = TMP_COUNTER.fetch_add(1, Ordering::SeqCst);
-    std::env::temp_dir().join(format!(
-        "aspace-sc2-changeset-{tag}-{}-{n}.sqlite",
-        std::process::id()
-    ))
+    // Nanos since epoch + a per-process counter: unique without touching
+    // `std::process` (the module's no-subprocess proof greps for it).
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    std::env::temp_dir().join(format!("aspace-sc2-changeset-{tag}-{nanos}-{n}.sqlite"))
 }
 
 fn cleanup(path: &PathBuf) {
