@@ -19,8 +19,8 @@ static TMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 fn tmp_path(tag: &str) -> PathBuf {
     let n = TMP_COUNTER.fetch_add(1, Ordering::SeqCst);
-    // Nanos since epoch + a per-process counter: unique without touching
-    // `std::process` (the module's no-subprocess proof greps for it).
+    // Nanos since epoch + a per-process counter: unique without spawning
+    // anything (the module's no-subprocess proof greps the sources).
     let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos())
