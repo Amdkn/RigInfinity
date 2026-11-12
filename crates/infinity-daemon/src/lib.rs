@@ -40,8 +40,19 @@
 //! pointers (SHA-256), the factory SQLite store extended — not
 //! duplicated — with WAL mode on. No code is copied from
 //! `CarterT27/scion` (reference only, clean-room).
+//!
+//! D-N051 F8 pas 7 — the coworkers surface is native: its five
+//! functions live here as the `bots` module (platform + 3 skins,
+//! computer-service `:4100` with the `x-openbot-bot-id` header kept
+//! verbatim, routines as job-loop entries with proof by receipt,
+//! coworker threads in the Shared Brain without Intelligence).
+//! The 16 `agent-*` shims, Spire, Postgres, `cron-parser` and the
+//! OpenDuet 0.2.0 vendu are NOT ported (D14, D5, D2). The pas 6
+//! functions (RLM, `/refine`) are a NAMED DEPENDENCY (§D9): the
+//! `/refine` path is conditional on the merge of `9050a1f`.
 
 pub mod agent;
+pub mod bots;
 pub mod changeset;
 pub mod client;
 pub mod http;

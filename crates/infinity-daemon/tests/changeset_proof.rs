@@ -6,7 +6,7 @@
 //! the changeset row holds its SHA-256 only — never the content.
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use infinity_daemon::changeset::{
@@ -28,7 +28,7 @@ fn tmp_path(tag: &str) -> PathBuf {
     std::env::temp_dir().join(format!("aspace-sc2-changeset-{tag}-{nanos}-{n}.sqlite"))
 }
 
-fn cleanup(path: &PathBuf) {
+fn cleanup(path: &Path) {
     for suffix in ["", "-wal", "-shm", "-journal"] {
         let p = PathBuf::from(format!("{}{suffix}", path.display()));
         let _ = std::fs::remove_file(p);
