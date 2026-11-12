@@ -14,8 +14,9 @@
 //! 5. The gateway fails over against a REAL local loopback HTTP
 //!    stub (500 for the first link, 200 for the second); the switch
 //!    is recorded; no key is read (H-P7-6).
-//! 6. `/refine` is conditional on the pas 6 merge: unavailable, with
-//!    the reason naming `9050a1f` (D9).
+//! 6. `/refine` is available since the pas 6 merge (`9050a1f`,
+//!    F8 pas 8): proved by behaviour — a real plan + apply
+//!    round-trip on an in-memory harness state (R-J10, D9).
 //! 7. Telemetry zero: no emitter in the native surface; no CPK key,
 //!    no telemetry sink, no cron-parser string in the native tree
 //!    (H-P7-7, D4).
@@ -140,9 +141,40 @@ fn coworker_survives_restart_without_intelligence() {
 }
 
 #[test]
-fn refine_is_conditional_on_pas6_merge() {
-    assert!(!refine_available());
-    assert!(refine_unavailable_reason().contains("9050a1f"));
+fn refine_is_available_after_pas6_merge() {
+    // R-J10 (F8 pas 8): /refine is available BECAUSE the merged
+    // prime-agent module plans and applies a real refinement —
+    // proved by behaviour, not by a flipped constant.
+    assert!(refine_available());
+    assert!(refine_unavailable_reason().is_empty());
+    // Direct behavioural proof, independent of the probe inside
+    // `refine_available()`: plan + apply on an in-memory harness
+    // state, then read the entry back.
+    use infinity_daemon::prime_agent_refine::{
+        HarnessState, RefineOptions, RefinementAction, RefinementEdit, RefinementKind,
+        RefinementProposal, apply_refinement_plan, plan_refinement,
+    };
+    let mut state = HarnessState::default();
+    let options = RefineOptions::default();
+    let plan = plan_refinement(&[], &options, &|_| {
+        Ok(RefinementProposal {
+            summary: "pas 8 proof".to_owned(),
+            rationale: "direct plan + apply proof".to_owned(),
+            expected_outcome: "one entry, readable back".to_owned(),
+            edits: vec![RefinementEdit {
+                action: RefinementAction::Create,
+                kind: RefinementKind::Skill,
+                id: None,
+                title: "pas8-proof".to_owned(),
+                content: "pas8-proof".to_owned(),
+            }],
+        })
+    })
+    .expect("plan a refinement");
+    let result = apply_refinement_plan(&mut state, plan, &options, None);
+    assert!(result.applied_edits.iter().any(|edit| edit.applied));
+    let entry = state.get("pas8-proof").expect("entry readable back");
+    assert_eq!(entry.content, "pas8-proof");
 }
 
 /// A loopback HTTP stub: 500 for the first link, 200 for the rest.

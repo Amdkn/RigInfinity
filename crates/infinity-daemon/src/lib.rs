@@ -29,6 +29,19 @@
 //! (§D8): this pas ports against the pas-3 base, it does not await
 //! them — they are present in this tree from pas 4.
 //!
+//! D-N052 R2 (= F8 pas 6) — the prime-agent recursion engine is
+//! native: its four functions live here as native modules
+//! (`prime_agent_rlm` for spawn/collect/end_turn with bounded
+//! recursion, `prime_agent_refine` for the Continual Harness with
+//! its durable JSON store, `prime_agent_runtime` for the Python REPL
+//! as a re-pointed surface, `prime_agent_daemon` for `pa-daemon` as
+//! a reference that is never launched). The fork's default-ON
+//! analytics endpoint is NOT ported (H-M4); no provider key is read
+//! (D9); no second daemon is ever launched (H-F8-1, H-F8-2).
+//! Merged into `aspace-v5-native` at F8 pas 8 (D-N051): `/refine` is
+//! available — `refine_available()` proves it by planning and
+//! applying a real refinement on an in-memory harness state (R-J10).
+//!
 //! D-N054 SC-1 — the native source control read API lives here as the
 //! `source_control` module: the 6-query contract of D4 (diff, blame,
 //! ancestor live at SC-1, served above the GitHub API without a clone;
@@ -48,8 +61,8 @@
 //! coworker threads in the Shared Brain without Intelligence).
 //! The 16 `agent-*` shims, Spire, Postgres, `cron-parser` and the
 //! OpenDuet 0.2.0 vendu are NOT ported (D14, D5, D2). The pas 6
-//! functions (RLM, `/refine`) are a NAMED DEPENDENCY (§D9): the
-//! `/refine` path is conditional on the merge of `9050a1f`.
+//! functions (RLM, `/refine`) were a NAMED DEPENDENCY (§D9), merged
+//! at F8 pas 8 — `/refine` is available, proved by behaviour (R-J10).
 
 pub mod agent;
 pub mod bots;
@@ -64,6 +77,10 @@ pub mod openrig_context_packs;
 pub mod openrig_lineage;
 pub mod openrig_state;
 pub mod openrig_terminal;
+pub mod prime_agent_daemon;
+pub mod prime_agent_refine;
+pub mod prime_agent_rlm;
+pub mod prime_agent_runtime;
 pub mod provider;
 pub mod rap;
 pub mod rap_callback;

@@ -77,8 +77,10 @@ pub const BROWSER_PORT: u16 = 4311;
 /// Minimum routine interval (D5) — a job-loop policy, not cron syntax.
 pub const MINIMUM_INTERVAL_MS: u64 = 15 * 60 * 1000;
 
-/// The pas 6 native port, not yet merged (`9050a1f` lives on
-/// `ryan/d-n052-r2-native`). The `/refine` path is conditional on it.
+/// The pas 6 native port, merged at F8 pas 8 (`9050a1f`, from
+/// `ryan/d-n052-r2-native` into `aspace-v5-native`). The `/refine`
+/// path is available — proved by behaviour, not by a flipped
+/// constant (R-J10, D-N051 F8 pas 8).
 pub const PAS6_NATIVE_COMMIT: &str = "9050a1f";
 
 /// Keys that must never appear in native code (D6).
@@ -328,18 +330,51 @@ pub fn contains_forbidden_key(text: &str) -> bool {
     FORBIDDEN_KEYS.iter().any(|k| text.contains(k))
 }
 
-/// The `/refine` path is CONDITIONAL on the pas 6 merge (D9).
-/// Until `9050a1f` lands in `aspace-v5-native`, refinement by proof
-/// is unavailable — and the platform, the 3 skins and the
-/// computer-service do not wait for it.
+/// The `/refine` path, available since the pas 6 merge (D9, F8
+/// pas 8). Availability is PROVED BY BEHAVIOUR (R-J10), never by a
+/// flipped constant: this runs the merged `prime_agent_refine`
+/// machinery for real — plan a refinement, apply it to an
+/// in-memory harness state, read the entry back — and returns true
+/// only when the whole round-trip succeeds. If the module were
+/// absent or broken, the code would not compile or the probe would
+/// fail; the platform, the 3 skins and the computer-service never
+/// waited for it, and now they can call it.
 pub fn refine_available() -> bool {
-    false
+    use crate::prime_agent_refine::{
+        HarnessState, RefineOptions, RefinementAction, RefinementEdit, RefinementKind,
+        RefinementProposal, apply_refinement_plan, plan_refinement,
+    };
+    let mut state = HarnessState::default();
+    let options = RefineOptions::default();
+    let plan = match plan_refinement(&[], &options, &|_| {
+        Ok(RefinementProposal {
+            summary: "refine availability probe".to_owned(),
+            rationale: "prove /refine is merged and working (R-J10)".to_owned(),
+            expected_outcome: "one harness entry created".to_owned(),
+            edits: vec![RefinementEdit {
+                action: RefinementAction::Create,
+                kind: RefinementKind::Prompt,
+                id: None,
+                title: "probe".to_owned(),
+                content: "probe".to_owned(),
+            }],
+        })
+    }) {
+        Ok(plan) => plan,
+        Err(_) => return false,
+    };
+    let result = apply_refinement_plan(&mut state, plan, &options, None);
+    result.applied_edits.iter().any(|edit| edit.applied) && !state.is_empty()
 }
 
 pub fn refine_unavailable_reason() -> String {
-    format!(
-        "pas 6 non mergé : le portage natif {PAS6_NATIVE_COMMIT} vit sur ryan/d-n052-r2-native ; /refine est conditionnel à son merge (§D9)"
-    )
+    if refine_available() {
+        String::new()
+    } else {
+        format!(
+            "pas 6 non mergé : le portage natif {PAS6_NATIVE_COMMIT} vit sur ryan/d-n052-r2-native ; /refine est conditionnel à son merge (§D9)"
+        )
+    }
 }
 
 /// A routine as a job-loop entry (D5): the schedule becomes a
@@ -534,9 +569,44 @@ mod tests {
     }
 
     #[test]
-    fn refine_is_conditional_on_pas6() {
-        assert!(!refine_available());
-        assert!(refine_unavailable_reason().contains(PAS6_NATIVE_COMMIT));
+    fn refine_is_available_after_pas6_merge() {
+        // R-J10 (F8 pas 8): merged — proved by behaviour, not by a
+        // flipped constant. The probe inside `refine_available()`
+        // plans and applies a real refinement; here the merged
+        // module is exercised directly as well.
+        assert!(refine_available());
+        assert!(refine_unavailable_reason().is_empty());
+        assert_eq!(PAS6_NATIVE_COMMIT, "9050a1f");
+        use crate::prime_agent_refine::{
+            HarnessState, RefineOptions, RefinementAction, RefinementEdit, RefinementKind,
+            RefinementProposal, apply_refinement_plan, plan_refinement,
+        };
+        let mut state = HarnessState::default();
+        let options = RefineOptions::default();
+        let plan = plan_refinement(&[], &options, &|_| {
+            Ok(RefinementProposal {
+                summary: "pas 8 unit proof".to_owned(),
+                rationale: "direct plan + apply proof".to_owned(),
+                expected_outcome: "one entry, readable back".to_owned(),
+                edits: vec![RefinementEdit {
+                    action: RefinementAction::Create,
+                    kind: RefinementKind::Memory,
+                    id: None,
+                    title: "unit-proof".to_owned(),
+                    content: "unit-proof".to_owned(),
+                }],
+            })
+        })
+        .expect("plan a refinement");
+        let result = apply_refinement_plan(&mut state, plan, &options, None);
+        assert!(result.applied_edits.iter().any(|edit| edit.applied));
+        assert_eq!(
+            state
+                .get("unit-proof")
+                .expect("entry readable back")
+                .content,
+            "unit-proof"
+        );
     }
 
     #[test]
